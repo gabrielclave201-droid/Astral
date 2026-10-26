@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Astral</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--nuit:#0d1124;--ardoise:#161b38;--ligne:#2a3160;--ivoire:#ece6d6;--brume:#9aa0c4;--laiton:#c9a45c;--violet:#7b6fd0;--rouge:#d9786a}
+*{box-sizing:border-box;margin:0}
+body{font:16px/1.55 Figtree,system-ui,sans-serif;color:var(--ivoire);background:radial-gradient(1200px 600px at 80% -10%,#232a5c55,transparent),var(--nuit);min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+h1,h2,h3{font-family:"Cormorant Garamond",serif;font-weight:600;line-height:1.1}
+header{display:flex;align-items:center;gap:14px;padding:18px 20px;max-width:960px;margin:auto;flex-wrap:wrap}
+.logo{width:42px;height:42px;border:1.5px solid var(--laiton);border-radius:50%;display:grid;place-items:center;font:600 26px "Cormorant Garamond",serif;color:var(--laiton)}
+.nom{font:600 28px "Cormorant Garamond",serif;letter-spacing:.04em}
+nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+nav button{background:none;border:0;color:var(--brume);padding:8px 12px;font:500 15px Figtree;cursor:pointer;border-bottom:2px solid transparent}
+nav button.on{color:var(--ivoire);border-color:var(--laiton)}
+main{max-width:960px;margin:auto;padding:8px 20px 60px}
+.vue{display:none}.vue.on{display:block}
+.carte{background:var(--ardoise);border:1px solid var(--ligne);border-radius:14px;padding:20px;margin-bottom:16px}
+.ligne{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+select,input{background:var(--nuit);color:var(--ivoire);border:1px solid var(--ligne);border-radius:10px;padding:11px 14px;font:inherit}
+button.cta{background:var(--laiton);color:#1b1608;border:0;border-radius:10px;padding:12px 22px;font:600 16px Figtree;cursor:pointer}
+button.cta:disabled{opacity:.5;cursor:default}
+button.alt{background:none;color:var(--ivoire);border:1px solid var(--ligne);border-radius:10px;padding:12px 18px;font:500 15px Figtree;cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.scene{position:relative;border-radius:14px;overflow:hidden;background:#05070f;aspect-ratio:4/3;max-height:70vh;margin:14px 0;border:1px solid var(--ligne)}
+.scene video,.scene canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.scene video{opacity:.55}
+#banniere{position:absolute;inset:0;display:grid;place-items:center;font:600 96px "Cormorant Garamond",serif;color:var(--laiton);text-shadow:0 0 40px #c9a45c88;pointer-events:none}
+#chrono{position:absolute;top:12px;right:16px;font:600 30px "Cormorant Garamond",serif;color:var(--ivoire)}
+.score{font:700 96px/1 "Cormorant Garamond",serif;color:var(--laiton)}
+.muet{color:var(--brume);font-size:14px}
+.conseil{padding:8px 0;border-top:1px solid var(--ligne)}
+table{width:100%;border-collapse:collapse}
+td,th{padding:10px 8px;text-align:left;border-bottom:1px solid var(--ligne)}
+th{color:var(--brume);font-weight:500;font-size:14px}
+.elo{font:700 56px "Cormorant Garamond",serif;color:var(--laiton)}
+.gain{font:700 44px "Cormorant Garamond",serif}
+.gain.p{color:#8fd19e}.gain.n{color:var(--rouge)}
+#erreur{color:var(--rouge);margin:8px 0;min-height:1.4em}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+@media (max-width:560px){nav{margin-left:0;width:100%}.score{font-size:76px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">A</div><div class="nom">Astral</div>
+  <nav id="nav">
+    <button data-v="train" class="on">Entraînement</button>
+    <button data-v="battle">Battle</button>
+    <button data-v="top">Classement</button>
+    <button data-v="profil">Profil</button>
+  </nav>
+</header>
+<main>
+  <div id="erreur" role="alert"></div>
+
+  <section id="v-train" class="vue on">
+    <div class="carte">
+      <h2>Analyse en direct</h2>
+      <p class="muet">Place-toi de profil, corps entier visible. La note s’affiche à la fin de la figure.</p>
+      <div class="ligne" style="margin-top:12px">
+        <select id="tfig" aria-label="Figure"></select>
+        <button class="cta" id="tgo">Lancer l’analyse</button>
+      </div>
+      <div class="scene"><video id="cam" playsinline muted></video><canvas id="ov"></canvas><div id="chrono"></div><div id="banniere"></div></div>
+      <div id="res"></div>
+    </div>
+  </section>
+
+  <section id="v-battle" class="vue">
+    <div class="carte" id="authbox">
+      <h2>Connexion</h2>
+      <p class="muet">Crée un compte pour affronter d’autres athlètes et gagner de l’ELO.</p>
+      <div class="ligne" style="margin-top:12px">
+        <input id="pseudo" placeholder="Pseudo (inscription)" autocomplete="nickname">
+        <input id="mail" type="email" placeholder="E-mail" autocomplete="email">
+        <input id="mdp" type="password" placeholder="Mot de passe (6 caractères min.)" autocomplete="current-password">
+      </div>
+      <div class="ligne" style="margin-top:12px">
+        <button class="cta" id="bin">Se connecter</button>
+        <button class="alt" id="bup">Créer un compte</button>
+      </div>
+    </div>
+    <div class="carte" id="battlebox" hidden>
+      <h2>Battle en ligne</h2>
+      <p class="muet">Chaque athlète passe la même figure. La meilleure note l’emporte.</p>
+      <div class="ligne" style="margin-top:12px">
+        <select id="bfig" aria-label="Figure du battle"></select>
+        <button class="cta" id="bgo">Chercher un adversaire</button>
+        <button class="alt" id="bcancel" hidden>Annuler</button>
+      </div>
+      <p id="bstat" class="muet" style="margin-top:12px"></p>
+      <div class="scene" id="bscene" hidden><video id="cam2" playsinline muted></video><canvas id="ov2"></canvas><div id="chrono2" style="position:absolute;top:12px;right:16px;font:600 30px 'Cormorant Garamond',serif"></div><div id="banniere2" style="position:absolute;inset:0;display:grid;place-items:center;font:600 96px 'Cormorant Garamond',serif;color:var(--laiton);pointer-events:none"></div></div>
+      <button class="cta" id="bready" hidden>Je suis prêt</button>
+      <div id="bres"></div>
+    </div>
+  </section>
+
+  <section id="v-top" class="vue"><div class="carte"><h2>Classement</h2><div id="toplist" class="muet">Chargement…</div></div></section>
+  <section id="v-profil" class="vue"><div class="carte" id="pbox"><p class="muet">Connecte-toi dans l’onglet Battle pour voir ton profil.</p></div></section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script type="module">
+import {PoseLandmarker,FilesetResolver} from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
+
+/* ========= À REMPLIR : Supabase > Project Settings > API ========= */
+const CFG={url:"https://bgknizrqqxumilqslhhq.supabase.co",key:"sb_publishable_sTiFDGOgGSwIgD4BThAqcw_uovH_Usw"};
+/* ================================================================= */
+
+const sb=CFG.url?window.supabase.createClient(CFG.url,CFG.key):null;
+const $=s=>document.querySelector(s), sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const erreur=m=>$("#erreur").textContent=m||"";
+let me=null,prof=null,pose=null,stream=null,annule=false;
+
+/* ---------- Navigation ---------- */
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll("#nav button,.vue").forEach(e=>e.classList.remove("on"));
+  b.classList.add("on");$("#v-"+b.dataset.v).classList.add("on");erreur();
+  if(b.dataset.v==="top")classement();
+});
+
+/* ---------- Maths du squelette ---------- */
+const ang=(a,b,c)=>{let d=Math.abs((Math.atan2(c.y-b.y,c.x-b.x)-Math.atan2(a.y-b.y,a.x-b.x))*180/Math.PI);return d>180?360-d:d};
+const incl=(a,b)=>{const d=Math.abs(Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI);return d>90?180-d:d}; // 0 = horizontal, 90 = vertical
+const fit=(x,ideal,tol)=>Math.max(0,1-Math.abs(x-ideal)/tol);
+
+/* ---------- Figures et critères ----------
+   Barème inspiré des critères de jugement (exécution, alignement, tenue).
+   Ce n’est PAS le barème officiel : à remplacer par le code de points d’une fédération. */
+const FIGURES={
+  tuck:{nom:"Tuck planche",f:(p,H)=>{
+    const {sh,el,wr,hp,kn,an}=p,
+      bras=fit(ang(sh,el,wr),180,40),
+      buste=fit(incl(sh,hp),0,35),
+      groupe=(fit(ang(hp,kn,an),50,45)+fit(ang(sh,hp,kn),60,45))/2,
+      decol=an.y<wr.y-.03*H?1:0;
+    return {c:[["Bras",bras,"Tends complètement les bras",.3],["Buste",buste,"Aligne épaules et bassin à l’horizontale",.25],
+      ["Groupé",groupe,"Ramène les genoux vers la poitrine",.25],["Décollage",decol,"Décolle les pieds du sol",.2]],
+      g:Math.min(decol,buste*2,1)}}},
+  lsit:{nom:"L-sit",f:(p)=>{
+    const {sh,el,wr,hp,kn,an}=p,
+      bras=fit(ang(sh,el,wr),180,40),
+      buste=fit(incl(sh,hp),90,25),
+      jambes=fit(incl(hp,an),0,30),
+      genoux=fit(ang(hp,kn,an),180,35);
+    return {c:[["Bras",bras,"Verrouille les coudes",.25],["Buste",buste,"Garde le buste vertical",.2],
+      ["Jambes",jambes,"Monte les jambes à l’horizontale",.3],["Genoux",genoux,"Tends les genoux",.25]],g:Math.min(jambes*2,1)}}}
+};
+for(const s of ["#tfig","#bfig"]){
+  if(s==="#tfig")$(s).innerHTML='<option value="auto">Reconnaissance automatique</option>';
+  for(const k in FIGURES)$(s).innerHTML+=`<option value="${k}">${FIGURES[k].nom}</option>`;
+}
+function cotes(L,W,H){
+  const P=L.map(l=>({x:l.x*W,y:l.y*H,v:l.visibility??1})),
+    ids=[[11,13,15,23,25,27],[12,14,16,24,26,28]],
+    vis=a=>a.reduce((t,i)=>t+P[i].v,0),
+    s=vis(ids[0])>=vis(ids[1])?ids[0]:ids[1];
+  const [sh,el,wr,hp,kn,an]=s.map(i=>P[i]);
+  return {P,p:{sh,el,wr,hp,kn,an},v:vis(s)/6};
+}
+function qualite(key,p,H){
+  const r=FIGURES[key].f(p,H),
+    base=r.c.reduce((t,[,v,,w])=>t+v*w,0);
+  return {q:Math.round(100*base*(.3+.7*r.g)),c:r.c};
+}
+
+/* ---------- Caméra et MediaPipe ---------- */
+async function initPose(){
+  if(pose)return;
+  const f=await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+  pose=await PoseLandmarker.createFromOptions(f,{baseOptions:{modelAssetPath:
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",delegate:"GPU"},
+    runningMode:"VIDEO",numPoses:1});
+}
+async function camera(video,canvas){
+  if(!stream)stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:640,height:480},audio:false});
+  video.srcObject=stream;await video.play();
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+}
+const LIENS=[[11,13],[13,15],[12,14],[14,16],[11,12],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
+function constellation(ctx,P,W,H){ // le squelette dessiné comme une constellation
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle="rgba(236,230,214,.45)";ctx.lineWidth=1.5;
+  for(const [a,b] of LIENS){ctx.beginPath();ctx.moveTo(P[a].x,P[a].y);ctx.lineTo(P[b].x,P[b].y);ctx.stroke()}
+  for(const i of [11,12,13,14,15,16,23,24,25,26,27,28]){
+    ctx.fillStyle="#c9a45c";ctx.shadowColor="#c9a45c";ctx.shadowBlur=14;
+    ctx.beginPath();ctx.arc(P[i].x,P[i].y,5,0,7);ctx.fill();
+  }
+  ctx.shadowBlur=0;
+}
+
+/* ---------- Une séance d’analyse (20 s) ---------- */
+async function seance(cle,ui){
+  const {video,canvas,banniere,chrono}=ui,ctx=canvas.getContext("2d");
+  banniere.textContent="…";await initPose();await camera(video,canvas);
+  for(let i=3;i>0;i--){banniere.textContent=i;await sleep(1000)}
+  banniere.textContent="Go";setTimeout(()=>banniere.textContent="",700);
+  const DUREE=20000,t0=performance.now(),cles=cle==="auto"?Object.keys(FIGURES):[cle],
+    manque={},compte={};let somme=0,n=0,tenue=0,prec=t0;
+  while(performance.now()-t0<DUREE){
+    await new Promise(r=>requestAnimationFrame(r));
+    const now=performance.now(),dt=(now-prec)/1000;prec=now;
+    chrono.textContent=Math.ceil((DUREE-(now-t0))/1000)+" s";
+    const res=pose.detectForVideo(video,now);n++;
+    if(!res.landmarks[0]){ctx.clearRect(0,0,canvas.width,canvas.height);continue}
+    const {P,p,v}=cotes(res.landmarks[0],canvas.width,canvas.height);
+    constellation(ctx,P,canvas.width,canvas.height);
+    if(v<.5)continue;
+    let best=null;
+    for(const k of cles){const r=qualite(k,p,canvas.height);if(!best||r.q>best.q)best={k,...r}}
+    if(best.q>=50){
+      somme+=best.q;tenue+=dt;compte[best.k]=(compte[best.k]||0)+1;
+      for(const [nom,val,tip] of best.c){manque[nom]=manque[nom]||{s:0,tip};manque[nom].s+=1-val}
+    }
+  }
+  chrono.textContent="";ctx.clearRect(0,0,canvas.width,canvas.height);
+  const fig=Object.keys(compte).sort((a,b)=>compte[b]-compte[a])[0]||null;
+  const conseils=Object.values(manque).sort((a,b)=>b.s-a.s).slice(0,2).filter(x=>x.s>0).map(x=>x.tip);
+  if(tenue<2)conseils.unshift("Figure non détectée : filme-toi de profil, corps entier visible, avec un bon éclairage");
+  return {note:Math.round(somme/Math.max(n,1)),tenue:Math.round(tenue*10)/10,fig,conseils};
+}
+const ui1={video:$("#cam"),canvas:$("#ov"),banniere:$("#banniere"),chrono:$("#chrono")};
+const ui2={video:$("#cam2"),canvas:$("#ov2"),banniere:$("#banniere2"),chrono:$("#chrono2")};
+
+/* ---------- Entraînement ---------- */
+$("#tgo").onclick=async()=>{
+  erreur();$("#res").innerHTML="";$("#tgo").disabled=true;
+  try{
+    const r=await seance($("#tfig").value,ui1);
+    $("#res").innerHTML=`<div class="score">${r.note}<span class="muet" style="font-size:28px"> / 100</span></div>
+      <p>${r.fig?FIGURES[r.fig].nom+" · ":""}tenue ${r.tenue} s</p>`+
+      r.conseils.map(c=>`<div class="conseil">${c}</div>`).join("");
+  }catch(e){erreur("Caméra ou modèle indisponible : "+e.message)}
+  $("#tgo").disabled=false;
+};
+
+/* ---------- Compte ---------- */
+if(!sb){$("#authbox").innerHTML="<h2>Configuration requise</h2><p class='muet'>Renseigne l’URL et la clé Supabase en haut du script pour activer les battles.</p>"}
+async function profil(u){
+  me=u;prof=null;
+  if(u){
+    let {data}=await sb.from("profiles").select("*").eq("id",u.id).maybeSingle();
+    if(!data){
+      const pseudo=u.user_metadata?.pseudo||u.email.split("@")[0];
+      await sb.from("profiles").insert({id:u.id,pseudo});
+      ({data}=await sb.from("profiles").select("*").eq("id",u.id).maybeSingle());
+    }
+    prof=data;
+  }
+  $("#authbox").hidden=!!u&&!!prof;$("#battlebox").hidden=!(u&&prof);dessinerProfil();
+}
+const rang=e=>e<1100?"Bronze":e<1250?"Argent":e<1400?"Or":e<1600?"Platine":"Diamant";
+function dessinerProfil(){
+  if(!prof)return;
+  $("#pbox").innerHTML=`<h2>${prof.pseudo}</h2><div class="elo">${prof.elo}</div>
+    <p>${rang(prof.elo)} · ${prof.wins} victoire(s) · ${prof.losses} défaite(s)</p>
+    <p style="margin-top:14px"><button class="alt" id="bye">Se déconnecter</button></p>`;
+  $("#bye").onclick=async()=>{await sb.auth.signOut();profil(null);$("#pbox").innerHTML="<p class='muet'>Déconnecté.</p>"};
+}
+if(sb){
+  $("#bin").onclick=async()=>{erreur();const {error}=await sb.auth.signInWithPassword({email:$("#mail").value,password:$("#mdp").value});
+    if(error)return erreur("Connexion impossible : "+error.message);profil((await sb.auth.getUser()).data.user)};
+  $("#bup").onclick=async()=>{erreur();const pseudo=$("#pseudo").value.trim();if(pseudo.length<3)return erreur("Choisis un pseudo d’au moins 3 caractères.");
+    const {data,error}=await sb.auth.signUp({email:$("#mail").value,password:$("#mdp").value,options:{data:{pseudo}}});
+    if(error)return erreur("Inscription impossible : "+error.message);
+    if(!data.session)return erreur("Compte créé. Confirme ton e-mail puis connecte-toi.");profil(data.user)};
+  const {data}=await sb.auth.getSession();profil(data.session?.user||null);
+}
+
+/* ---------- Classement ---------- */
+async function classement(){
+  if(!sb){$("#toplist").textContent="Disponible une fois Supabase configuré.";return}
+  const {data,error}=await sb.from("profiles").select("pseudo,elo,wins,losses").order("elo",{ascending:false}).limit(50);
+  if(error)return $("#toplist").textContent="Classement indisponible.";
+  $("#toplist").innerHTML=data.length?`<table><tr><th>#</th><th>Athlète</th><th>ELO</th><th>V / D</th></tr>`+
+    data.map((r,i)=>`<tr><td>${i+1}</td><td>${r.pseudo}</td><td>${r.elo}</td><td>${r.wins} / ${r.losses}</td></tr>`).join("")+"</table>":"Aucun athlète pour le moment.";
+}
+
+/* ---------- Battle ---------- */
+let battle=null;
+$("#bgo").onclick=async()=>{
+  erreur();annule=false;$("#bgo").disabled=true;$("#bcancel").hidden=false;$("#bres").innerHTML="";
+  $("#bstat").textContent="Recherche d’un adversaire…";
+  let id=null;
+  while(!id&&!annule){
+    const {data,error}=await sb.rpc("find_match",{f:$("#bfig").value});
+    if(error){erreur("Matchmaking indisponible : "+error.message);break}
+    id=data;if(!id)await sleep(2500);
+  }
+  $("#bcancel").hidden=true;
+  if(!id){await sb.rpc("cancel_queue");$("#bgo").disabled=false;$("#bstat").textContent="";return}
+  const {data:b}=await sb.from("battles").select("*").eq("id",id).single();battle=b;
+  const adv=b.p1===me.id?b.p2:b.p1;
+  const {data:a}=await sb.from("profiles").select("pseudo,elo").eq("id",adv).single();
+  $("#bstat").textContent=`Adversaire : ${a.pseudo} (${a.elo} ELO). Figure : ${FIGURES[b.figure].nom}.`;
+  $("#bready").hidden=false;
+};
+$("#bcancel").onclick=()=>{annule=true};
+$("#bready").onclick=async()=>{
+  $("#bready").hidden=true;$("#bscene").hidden=false;
+  try{
+    const r=await seance(battle.figure,ui2);
+    $("#bscene").hidden=true;
+    await sb.rpc("submit_score",{b:battle.id,sc:r.note});
+    $("#bstat").textContent="Score envoyé. En attente de ton adversaire…";
+    let fin=null;
+    for(let i=0;i<150&&!fin;i++){
+      const {data}=await sb.from("battles").select("*").eq("id",battle.id).single();
+      if(data.status==="done")fin=data;else await sleep(2000);
+    }
+    if(!fin){$("#bstat").textContent="Ton adversaire n’a pas terminé. Réessaie plus tard.";$("#bgo").disabled=false;return}
+    const moi=fin.p1===me.id,d=moi?fin.d1:fin.d2,mien=moi?fin.s1:fin.s2,sien=moi?fin.s2:fin.s1;
+    $("#bstat").textContent="";
+    $("#bres").innerHTML=`<div class="gain ${d>=0?"p":"n"}">${d>=0?"+":""}${d} ELO</div>
+      <p>${fin.winner===me.id?"Victoire":fin.winner?"Défaite":"Égalité"} : ${mien} contre ${sien}</p>`;
+    const {data:p}=await sb.from("profiles").select("*").eq("id",me.id).single();prof=p;dessinerProfil();
+  }catch(e){erreur("Caméra ou modèle indisponible : "+e.message);$("#bscene").hidden=true}
+  $("#bgo").disabled=false;
+};
+</script>
+</body>
+</html>
